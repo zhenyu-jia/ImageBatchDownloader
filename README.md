@@ -1,0 +1,2 @@
+# ImageBatchDownloader
+本项目是一个用于批量下载图床图片的工具
