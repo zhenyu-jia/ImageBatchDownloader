@@ -41,6 +41,7 @@ async function startDownload() {
                 await Promise.race(runningPromises);
             }
 
+            await delay(200); // 增加200毫秒的延迟，确保每秒不超过5个请求
             const task = processImage(url, zip)
                 .then(result => {
                     if (result.success) success++;
@@ -118,6 +119,10 @@ async function processImage(url, zip) {
     } catch (error) {
         throw error;
     }
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // 封装 fetch 逻辑，支持主请求失败时使用代理服务器作为备用方案
