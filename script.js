@@ -41,7 +41,7 @@ async function startDownload() {
                 await Promise.race(runningPromises);
             }
 
-            await delay(200); // 增加200毫秒的延迟，确保每秒不超过5个请求
+            await delay(250); // 增加250毫秒的延迟，确保每秒不超过4个请求
             const task = processImage(url, zip)
                 .then(result => {
                     if (result.success) success++;
@@ -65,7 +65,14 @@ async function startDownload() {
         }
 
         // 等待所有剩余任务完成
-        await Promise.all(runningPromises);
+        await Promise.allSettled(runningPromises);
+
+        // 检查是否有成功下载的图片
+        if (success === 0) {
+            console.log("没有成功下载的图片，不生成 ZIP 文件");
+            alert("下载失败！");
+            return;
+        }
 
         // 生成 ZIP 文件并触发下载
         const zipBlob = await zip.generateAsync({ type: "blob" });
@@ -88,6 +95,11 @@ async function startDownload() {
 // 处理单个图片链接的逻辑
 async function processImage(url, zip) {
     try {
+        if (!isValidUrl(url)) {
+            console.warn(`无效的 URL：${url}`);
+            return { success: false };
+        }
+
         console.log(`正在处理链接：${url}`);
         const parsedUrl = new URL(url);
         console.log(`解析后的 URL：${parsedUrl.href}`);
@@ -117,7 +129,17 @@ async function processImage(url, zip) {
             return { success: false };
         }
     } catch (error) {
-        throw error;
+        console.error(`处理链接 ${url} 时发生错误：`, error);
+        return { success: false };
+    }
+}
+
+function isValidUrl(url) {
+    try {
+        new URL(url);
+        return true;
+    } catch (e) {
+        return false;
     }
 }
 
