@@ -31,57 +31,43 @@ async function startDownload() {
     try {
         const zip = new JSZip(); // 创建一个 ZIP 文件
 
-        // 限制并发下载数量为 5
-        const batchSize = 5;
-        for (let i = 0; i < total; i += batchSize) {
-            const batch = imageLinks.slice(i, i + batchSize);
-            await Promise.allSettled(
-                batch.map(async (url, index) => {
-                    try {
-                        console.log(`正在处理第 ${i + index + 1} 个链接：${url}`);
-                        const parsedUrl = new URL(url);
-                        console.log(`解析后的 URL：${parsedUrl.href}`);
+        // 动态并发控制，最大并发数为 5
+        const maxConcurrency = 5;
+        const runningPromises = new Set();
 
-                        const response = await fetchWithFallback(parsedUrl.href);
-                        const text = await response.text();
-                        console.log(`获取页面内容成功，内容长度：${text.length}`);
+        for (const url of imageLinks) {
+            // 如果当前运行的任务数达到最大并发数，则等待其中一个任务完成
+            if (runningPromises.size >= maxConcurrency) {
+                await Promise.race(runningPromises);
+            }
 
-                        const imgUrlMatch = text.match(/image_src" href="(.*)"/);
-                        if (imgUrlMatch && imgUrlMatch[1]) {
-                            const imgUrl = imgUrlMatch[1];
-                            console.log(`提取图片 URL 成功：${imgUrl}`);
-
-                            const imgResponse = await fetchWithFallback(imgUrl);
-                            const blob = await imgResponse.blob();
-                            console.log(`获取图片成功，文件大小：${blob.size} 字节`);
-
-                            const imgName = imgUrl.substring(imgUrl.lastIndexOf('/') + 1);
-                            console.log(`提取文件名成功：${imgName}`);
-
-                            // 将图片添加到 ZIP 文件中
-                            zip.file(imgName, blob);
-                            success++;
-                            console.log(`图片已添加到 ZIP 文件：${imgName}`);
-                        } else {
-                            console.warn(`无法从页面内容中提取图片 URL：${url}`);
-                            failure++;
-                            failedLinks.push(url);
-                        }
-                    } catch (error) {
-                        console.error(`处理链接 ${url} 时发生错误：`, error);
+            const task = processImage(url, zip)
+                .then(result => {
+                    if (result.success) success++;
+                    else {
                         failure++;
                         failedLinks.push(url);
-                    } finally {
-                        updateProgress(success, failure, total, successBar, failureBar, pendingBar, stats);
-                        failedLinksTextarea.value = failedLinks.join('\n');
                     }
                 })
-            );
+                .catch(error => {
+                    console.error(`处理链接 ${url} 时发生错误：`, error);
+                    failure++;
+                    failedLinks.push(url);
+                })
+                .finally(() => {
+                    runningPromises.delete(task);
+                    updateProgress(success, failure, total, successBar, failureBar, pendingBar, stats);
+                    failedLinksTextarea.value = failedLinks.join('\n');
+                });
+
+            runningPromises.add(task);
         }
+
+        // 等待所有剩余任务完成
+        await Promise.all(runningPromises);
 
         // 生成 ZIP 文件并触发下载
         const zipBlob = await zip.generateAsync({ type: "blob" });
-        // saveAs(zipBlob, "images.zip"); // 使用 FileSaver.js 触发下载
         const fileName = `images_${success}_${failure}_${total}.zip`; // 动态生成文件名
         saveAs(zipBlob, fileName); // 使用 FileSaver.js 触发下载
 
@@ -95,6 +81,42 @@ async function startDownload() {
     } finally {
         downloadButton.disabled = false;
         console.log("下载按钮已解锁");
+    }
+}
+
+// 处理单个图片链接的逻辑
+async function processImage(url, zip) {
+    try {
+        console.log(`正在处理链接：${url}`);
+        const parsedUrl = new URL(url);
+        console.log(`解析后的 URL：${parsedUrl.href}`);
+
+        const response = await fetchWithFallback(parsedUrl.href);
+        const text = await response.text();
+        console.log(`获取页面内容成功，内容长度：${text.length}`);
+
+        const imgUrlMatch = text.match(/image_src" href="(.*)"/);
+        if (imgUrlMatch && imgUrlMatch[1]) {
+            const imgUrl = imgUrlMatch[1];
+            console.log(`提取图片 URL 成功：${imgUrl}`);
+
+            const imgResponse = await fetchWithFallback(imgUrl);
+            const blob = await imgResponse.blob();
+            console.log(`获取图片成功，文件大小：${blob.size} 字节`);
+
+            const imgName = imgUrl.substring(imgUrl.lastIndexOf('/') + 1);
+            console.log(`提取文件名成功：${imgName}`);
+
+            // 将图片添加到 ZIP 文件中
+            zip.file(imgName, blob);
+            console.log(`图片已添加到 ZIP 文件：${imgName}`);
+            return { success: true };
+        } else {
+            console.warn(`无法从页面内容中提取图片 URL：${url}`);
+            return { success: false };
+        }
+    } catch (error) {
+        throw error;
     }
 }
 
