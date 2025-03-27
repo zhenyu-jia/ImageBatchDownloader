@@ -23,7 +23,7 @@ async function startDownload() {
     const failedLinksTextarea = document.getElementById('failedLinks');
 
     downloadButton.disabled = true;
-    stats.innerHTML = `<span style="color: #4CAF50;">成功: 0</span> | <span style="color: #f44336;">失败: 0</span> | <span>总数: ${total}</span>`;
+    updateProgress(success, failure, total, successBar, failureBar, pendingBar, stats);
     failedLinksTextarea.value = "";
 
     console.log("开始批量下载任务，总图片数量：", total);
