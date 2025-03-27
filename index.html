@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图床图片批量下载</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- 引入 JSZip 和 FileSaver.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="script.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <h1>图床图片批量下载</h1>
+        <textarea id="imageLinks" rows="10" placeholder="请输入图片链接，每行一个"></textarea>
+        <textarea id="failedLinks" rows="5" placeholder="下载失败的链接将显示在这里" readonly></textarea>
+        <div id="progressBar">
+            <div class="success" style="width: 0%;"></div>
+            <div class="failure" style="width: 0%;"></div>
+            <div class="pending" style="width: 100%;"></div>
+        </div>
+        <div id="stats">
+            <span style="color: #4CAF50;">成功: 0</span> |
+            <span style="color: #f44336;">失败: 0</span> |
+            <span>总数: 0</span>
+        </div>
+        <button id="downloadButton">下载</button>
+    </div>
+</body>
+</html>
